@@ -109,7 +109,6 @@ int main() {
     int i;
     pthread_t tid[3];
 
-    // Let us create three threads
     struct handle_data data = {
             kq,
             socket_listen_fd
