@@ -12,3 +12,7 @@ int get_code(char *header, char **path, int file_exist);
 void get_code_name(int code, char **code_name);
 
 void get_content_type(char *path, char **content_type);
+
+char *urlDecode(const char *str);
+
+int is_regular_file(const char *path);

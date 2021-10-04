@@ -47,7 +47,7 @@ int main() {
 
     kq = kqueue();
 
-    EV_SET(&change_event, socket_listen_fd, EVFILT_READ | EVFILT_WRITE, EV_ADD, 0, 0, 0);
+    EV_SET(&change_event, socket_listen_fd, EVFILT_READ , EV_ADD, 0, 0, 0);
 
     if (kevent(kq, &change_event, 1, NULL, 0, NULL) == -1) {
         perror("kevent");
@@ -55,7 +55,7 @@ int main() {
     }
 
     for (;;) {
-        new_events = kevent(kq, NULL, 0, event, 2, NULL);
+        new_events = kevent(kq, NULL, 0, event, 10, NULL);
         if (new_events == -1) {
             perror("kevent");
             exit(1);
@@ -71,7 +71,7 @@ int main() {
                 printf("Client has disconnected\n");
                 close(event_fd);
             }
-            else if (event_fd == socket_listen_fd) {
+            if (event_fd == socket_listen_fd) {
                 printf("New connection coming in...\n");
 
                 socket_connection_fd = accept_socket(event_fd, (struct sockaddr *) &client_addr,
@@ -93,17 +93,9 @@ int main() {
                     close(event_fd);
                 }
                 if (send_response(event_fd, path, header) < 0) {
-                    EV_SET(&change_event, event_fd, EVFILT_WRITE, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
-                    if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
-                        perror("kevent error");
-                    }
-                } else {
+                    EV_SET(&change_event, event_fd, EVFILT_READ, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
+                    printf("error send\n");
                     close(event_fd);
-                    printf("connection close\n");
-                }
-            } else if (event[i].filter == EVFILT_WRITE) {
-                if (send_response(event_fd, path, header) < 0) {
-                    EV_SET(&change_event, event_fd, EVFILT_WRITE, EV_ENABLE | EV_ADD | EV_ONESHOT, 0, 0, NULL);
                     if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
                         perror("kevent error");
                     }
