@@ -6,9 +6,64 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include "tcp.h"
 #include "http.h"
+struct handle_data {
+    int kq;
+    int socket_listen_fd;
+};
+void func(void* data) {
+    struct handle_data *data1 = (struct handle_data *) data;
+    int kq = data1->kq;
+    int socket_listen_fd = data1->socket_listen_fd;
+    struct kevent change_event,
+            event[32];
+    struct sockaddr_in serv_addr,
+            client_addr;
+    int client_len = sizeof(client_addr);
+    for (;;) {
+        int new_events = kevent(kq, NULL, 0, event, 10, NULL);
+        if (new_events == -1) {
+            exit(1);
+        }
 
+        char *path = NULL;
+        char *header = NULL;
+        for (int i = 0; new_events > i; i++) {
+            int event_fd = event[i].ident;
+
+            if (event[i].flags & EV_EOF) {
+                close(event_fd);
+            }
+            if (event_fd == socket_listen_fd) {
+
+                int socket_connection_fd = accept_socket(event_fd, (struct sockaddr *) &client_addr,
+                                                     (socklen_t *) &client_len);
+                if (socket_connection_fd < 0) {
+                }
+                EV_SET(&change_event, socket_connection_fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
+                if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
+                }
+            } else if (event[i].filter == EVFILT_READ) {
+                char buf[1024];
+                size_t bytes_read = recv(event_fd, buf, sizeof(buf), 0);
+
+                if (get_header_and_path(buf, bytes_read, &path, &header) < 0) {
+                    close(event_fd);
+                }
+                if (send_response(event_fd, path, header) < 0) {
+                    EV_SET(&change_event, event_fd, EVFILT_READ, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
+//                    close(event_fd);
+                    if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
+                    }
+                } else {
+                    close(event_fd);
+                }
+            }
+        }
+    }
+}
 int main() {
     int socket_listen_fd,
             portno = 80,
@@ -17,8 +72,7 @@ int main() {
             kq,
             new_events;
     struct kevent change_event,
-            event[32],
-            kekevent[4];
+            event[32];
     struct sockaddr_in serv_addr,
             client_addr;
 
@@ -37,7 +91,6 @@ int main() {
     serv_addr.sin_port = htons(portno);
 
     if (bind(socket_listen_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Error binding socket");
         exit(1);
     }
 
@@ -50,60 +103,20 @@ int main() {
     EV_SET(&change_event, socket_listen_fd, EVFILT_READ , EV_ADD, 0, 0, 0);
 
     if (kevent(kq, &change_event, 1, NULL, 0, NULL) == -1) {
-        perror("kevent");
         exit(1);
     }
 
-    for (;;) {
-        new_events = kevent(kq, NULL, 0, event, 10, NULL);
-        if (new_events == -1) {
-            perror("kevent");
-            exit(1);
-        }
+    int i;
+    pthread_t tid[3];
 
-        char *path = NULL;
-        char *header = NULL;
-        for (int i = 0; new_events > i; i++) {
-            printf("amount of new events: %d\n", new_events);
-            int event_fd = event[i].ident;
-
-            if (event[i].flags & EV_EOF) {
-                printf("Client has disconnected\n");
-                close(event_fd);
-            }
-            if (event_fd == socket_listen_fd) {
-                printf("New connection coming in...\n");
-
-                socket_connection_fd = accept_socket(event_fd, (struct sockaddr *) &client_addr,
-                                                     (socklen_t *) &client_len);
-                if (socket_connection_fd < 0) {
-                    perror("Accept socket error");
-                }
-                EV_SET(&change_event, socket_connection_fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
-                if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
-                    perror("kevent error");
-                }
-            } else if (event[i].filter == EVFILT_READ) {
-                char buf[1024];
-                size_t bytes_read = recv(event_fd, buf, sizeof(buf), 0);
-                printf("read %zu bytes\n", bytes_read);
-
-                if (get_header_and_path(buf, bytes_read, &path, &header) < 0) {
-                    perror("parse error");
-                    close(event_fd);
-                }
-                if (send_response(event_fd, path, header) < 0) {
-                    EV_SET(&change_event, event_fd, EVFILT_READ, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
-                    printf("error send\n");
-                    close(event_fd);
-                    if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
-                        perror("kevent error");
-                    }
-                } else {
-                    close(event_fd);
-                    printf("connection close\n");
-                }
-            }
-        }
-    }
+    // Let us create three threads
+    struct handle_data data = {
+            kq,
+            socket_listen_fd
+    };
+    long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
+    for (i = 0; i < number_of_processors; i++)
+        pthread_create(&tid[i], NULL, (void *(*)(void *)) func, (void *)&data);
+    for (i = 0; i < number_of_processors; i++)
+        pthread_join(tid[i], NULL);
 };

@@ -140,16 +140,15 @@ FILE *get_response(char *path, char *header, char **reply) {
                             "Connection: close\r\n"
                             "\r\n", code, code_name, date);
         }
-        printf("%s\n", *reply);
         free(code_name);
         free(content_type);
 
     } else {
-        sprintf(*reply, "HTTP/1.1 405 Method Not Allowed\n"
-                        "Date: %s\n"
-                        "Server: Apache/2.2.3\n"
-                        "Connection: close\n"
-                        "\n", date);
+        sprintf(*reply, "HTTP/1.1 405 Method Not Allowed\r\n"
+                        "Date: %s\r\n"
+                        "Server: Apache/2.2.3\r\n"
+                        "Connection: close\r\n"
+                        "\r\n", date);
     }
 
     free(date);
