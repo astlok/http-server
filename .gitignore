@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+cmake-build-debug
+httptest*
+.idea
+.DS_Store
+test.html
