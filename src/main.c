@@ -94,7 +94,6 @@ int main() {
         exit(1);
     }
 
-    // Start listening.
     listen(socket_listen_fd, 3);
     client_len = sizeof(client_addr);
 
