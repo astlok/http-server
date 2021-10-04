@@ -13,8 +13,6 @@ int accept_socket(int event_fd, struct sockaddr *client_addr, socklen_t *client_
     if (new_socket == -1) {
         return -1;
     }
-//    int set = 1;
-//    setsockopt(event_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
     if (fcntl(new_socket, F_SETFL, O_NONBLOCK) < 0) {
         return -1;
     }
@@ -28,14 +26,6 @@ int send_response(int event_fd, char *path, char *header) {
     send(event_fd, reply, strlen(reply), 0);
 
     if (in_file && strcasestr(header, "HEAD") == NULL) {
-//        while (fgets(data, 1024, in_file) != NULL) {
-//            if (write(event_fd, data, strlen(data)) == -1) {
-//                perror("[-]Error in sending file.");
-//            }
-//            bzero(data, 1024);
-//        }
-//        fclose(in_file);
-//            send_file(event_fd, in_file);1
         long data = 0;
         sendfile(fileno(in_file), event_fd, 0, (off_t *) &data, NULL, 0);
         fclose(in_file);
@@ -56,10 +46,6 @@ int senddata(int sock, void *buf, int buflen) {
     return 1;
 }
 
-//int sendlong(int sock, long value) {
-//    value = htonl(value);
-//    return senddata(sock, &value, sizeof(value));
-//}
 
 int send_file(int sock, FILE *f) {
     fseek(f, 0, SEEK_END);
@@ -67,8 +53,6 @@ int send_file(int sock, FILE *f) {
     fseek(f, 0L, SEEK_SET);
     if (filesize == EOF)
         return 0;
-//    if (!sendlong(sock, filesize))
-//        return 0;
     if (filesize > 0) {
         char buffer[1024];
         do {
