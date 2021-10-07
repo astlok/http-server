@@ -16,3 +16,5 @@ void get_content_type(char *path, char **content_type);
 char *urlDecode(const char *str);
 
 int is_regular_file(const char *path);
+
+void send_internal_serv_err(int event_fd);

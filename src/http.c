@@ -236,3 +236,19 @@ void get_content_type(char *path, char **content_type) {
         strcpy(*content_type, "text/css");
     }
 }
+
+
+void send_internal_serv_err(int event_fd) {
+    char *reply = (char *) malloc(sizeof(char) * 1024);
+
+    char *date = (char *) malloc(sizeof(char) * 64);
+    if (!date) {
+        return;
+    }
+    get_date(&date);
+    sprintf(reply, "HTTP/1.1 500 Internal Server Error\r\n"
+                   "Date: %s\r\n"
+                   "Server: Apache/2.2.3\r\n"
+                   "Connection: close\r\n"
+                   "\r\n", date);
+}
