@@ -13,7 +13,8 @@ struct handle_data {
     int kq;
     int socket_listen_fd;
 };
-void func(void* data) {
+
+_Noreturn void func(void* data) {
     struct handle_data *data1 = (struct handle_data *) data;
     int kq = data1->kq;
     int socket_listen_fd = data1->socket_listen_fd;
@@ -25,7 +26,7 @@ void func(void* data) {
     for (;;) {
         int new_events = kevent(kq, NULL, 0, event, 10, NULL);
         if (new_events == -1) {
-            exit(1);
+            perror("kevent error");
         }
 
         char *path = NULL;
@@ -41,6 +42,7 @@ void func(void* data) {
                 int socket_connection_fd = accept_socket(event_fd, (struct sockaddr *) &client_addr,
                                                      (socklen_t *) &client_len);
                 if (socket_connection_fd < 0) {
+                    perror("socket error");
                 }
                 EV_SET(&change_event, socket_connection_fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
                 if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
@@ -54,8 +56,8 @@ void func(void* data) {
                 }
                 if (send_response(event_fd, path, header) < 0) {
                     EV_SET(&change_event, event_fd, EVFILT_READ, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
-//                    close(event_fd);
                     if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
+                        perror("kevent error");
                     }
                 } else {
                     close(event_fd);
