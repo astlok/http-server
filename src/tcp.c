@@ -23,11 +23,15 @@ int send_response(int event_fd, char *path, char *header) {
     char *reply;
     reply = (char *) malloc(sizeof(char) * 1024);
     FILE *in_file = get_response(path, header, &reply);
-    send(event_fd, reply, strlen(reply), 0);
+    if (send(event_fd, reply, strlen(reply), 0) < 0) {
+        return -1;
+    }
 
     if (in_file && strcasestr(header, "HEAD") == NULL) {
         long data = 0;
-        sendfile(fileno(in_file), event_fd, 0, (off_t *) &data, NULL, 0);
+        if (sendfile(fileno(in_file), event_fd, 0, (off_t *) &data, NULL, 0) < 0) {
+            return -1;
+        }
         fclose(in_file);
     }
     return 0;

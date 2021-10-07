@@ -46,19 +46,19 @@ _Noreturn void func(void* data) {
                 }
                 EV_SET(&change_event, socket_connection_fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, NULL);
                 if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
+                    send_internal_serv_err(event_fd);
+                    close(event_fd);
                 }
             } else if (event[i].filter == EVFILT_READ) {
                 char buf[1024];
                 size_t bytes_read = recv(event_fd, buf, sizeof(buf), 0);
 
                 if (get_header_and_path(buf, bytes_read, &path, &header) < 0) {
+                    send_internal_serv_err(event_fd);
                     close(event_fd);
                 }
                 if (send_response(event_fd, path, header) < 0) {
-                    EV_SET(&change_event, event_fd, EVFILT_READ, EV_ENABLE | EV_ADD | EV_ONESHOT , 0, 0, NULL);
-                    if (kevent(kq, &change_event, 1, NULL, 0, NULL) < 0) {
-                        perror("kevent error");
-                    }
+                    send_internal_serv_err(event_fd);
                 } else {
                     close(event_fd);
                 }
@@ -104,7 +104,8 @@ int main() {
     EV_SET(&change_event, socket_listen_fd, EVFILT_READ , EV_ADD, 0, 0, 0);
 
     if (kevent(kq, &change_event, 1, NULL, 0, NULL) == -1) {
-        exit(1);
+        perror("kevent err");
+        return -1;
     }
 
     int i;
